@@ -139,7 +139,6 @@ linux-amd64-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags no_wasm -trimpath -ldflags="$(LDFLAGS)" -o $(LINUX_AMD64_BIN)/wlow-runner-go ./cmd/wlow-runner
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags no_wasm -trimpath -ldflags="$(LDFLAGS)" -o $(LINUX_AMD64_BIN)/wlow ./cmd/wlow
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags no_wasm -trimpath -ldflags="$(LDFLAGS)" -o $(LINUX_AMD64_BIN)/wlow-mcp ./cmd/wlow-mcp
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags no_wasm -trimpath -ldflags="$(LDFLAGS)" -o $(LINUX_AMD64_BIN)/processor ./cmd/processor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags no_wasm -trimpath -ldflags="$(LDFLAGS)" -o $(LINUX_AMD64_BIN)/wlow-agent ./cmd/wlow-agent
 
 # ── Kubernetes ────────────────────────────────────────────────────────────────

@@ -35,7 +35,6 @@ RUN go build -trimpath -ldflags="-s -w" -o /out/orchestrator     ./cmd/orchestra
 RUN go build -trimpath -ldflags="-s -w" -o /out/wlow-runner-go   ./cmd/wlow-runner
 RUN go build -trimpath -ldflags="-s -w" -o /out/wlow             ./cmd/wlow
 RUN go build -trimpath -ldflags="-s -w" -o /out/wlow-mcp         ./cmd/wlow-mcp
-RUN go build -trimpath -ldflags="-s -w" -o /out/processor        ./cmd/processor
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/wlow-agent ./cmd/wlow-agent
 
 FROM debian:bookworm AS kernel-builder
@@ -113,7 +112,6 @@ COPY --from=go-builder /out/orchestrator     /usr/local/bin/orchestrator
 COPY --from=go-builder /out/wlow-runner-go   /usr/local/bin/wlow-runner-go
 COPY --from=go-builder /out/wlow             /usr/local/bin/wlow
 COPY --from=go-builder /out/wlow-mcp         /usr/local/bin/wlow-mcp
-COPY --from=go-builder /out/processor        /usr/local/bin/processor
 COPY --from=go-builder /out/wlow-agent       /usr/local/bin/wlow-agent
 COPY --from=firecracker /tools/firecracker   /usr/local/bin/firecracker
 COPY --from=kernel-builder /out/vmlinux      /var/lib/wlow/kernel/vmlinux

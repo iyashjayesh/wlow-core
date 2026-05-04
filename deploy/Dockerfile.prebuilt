@@ -29,7 +29,6 @@ COPY bin/linux-amd64/wlow-runner /usr/local/bin/wlow-runner
 COPY bin/linux-amd64/wlow-runner-go /usr/local/bin/wlow-runner-go
 COPY bin/linux-amd64/wlow /usr/local/bin/wlow
 COPY bin/linux-amd64/wlow-mcp /usr/local/bin/wlow-mcp
-COPY bin/linux-amd64/processor /usr/local/bin/processor
 COPY bin/linux-amd64/wlow-agent /usr/local/bin/wlow-agent
 COPY bin/linux-amd64/vmlinux.bin /var/lib/wlow/kernel/vmlinux
 COPY --from=firecracker /tools/firecracker /usr/local/bin/firecracker
