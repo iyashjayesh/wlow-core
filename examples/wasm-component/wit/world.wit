@@ -1,5 +1,0 @@
-package example:echo@0.1.0;
-
-world deterministic-processor {
-  export process: func(input: list<u8>) -> result<list<u8>, string>;
-}

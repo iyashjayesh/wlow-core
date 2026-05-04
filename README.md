@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="wlow" width="120" />
+</p>
+
 # wlow
 
 **wlow** is a DAG-based workflow orchestrator. You define a graph of tasks, submit it, and wlow runs each task in the right sandbox — with dependency tracking, retries, and a final result.
