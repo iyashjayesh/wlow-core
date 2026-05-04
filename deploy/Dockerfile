@@ -12,6 +12,7 @@
 
 ARG GO_VERSION=1.23
 ARG FIRECRACKER_VERSION=v1.14.4
+ARG WLOW_RUNNER_VERSION=latest
 ARG KERNEL_URL=
 ARG KERNEL_SHA256=
 ARG KERNEL_SOURCE_REF=microvm-kernel-6.1.102-1.182.amzn2023
@@ -82,6 +83,31 @@ RUN set -eux; \
     make ARCH="${make_arch}" -j"$(nproc)" vmlinux; \
     cp vmlinux /out/vmlinux
 
+# Download wlow-runner from https://github.com/wlow-io/wlow-runner releases.
+# Pass --build-arg WLOW_RUNNER_VERSION=vX.Y.Z to pin a release.
+FROM debian:bookworm-slim AS wlow-runner-download
+ARG WLOW_RUNNER_VERSION=latest
+ARG TARGETARCH
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) arch=amd64 ;; \
+      arm64) arch=arm64 ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    if [ "${WLOW_RUNNER_VERSION}" = "latest" ]; then \
+      VERSION=$(curl -fsSL https://api.github.com/repos/wlow-io/wlow-runner/releases/latest \
+        | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/'); \
+    else \
+      VERSION="${WLOW_RUNNER_VERSION}"; \
+    fi; \
+    curl -fL -o /wlow-runner \
+      "https://github.com/wlow-io/wlow-runner/releases/download/${VERSION}/wlow-runner-linux-${arch}"; \
+    chmod +x /wlow-runner
+
 FROM debian:bookworm-slim AS firecracker
 ARG FIRECRACKER_VERSION
 ARG TARGETARCH
@@ -116,9 +142,7 @@ COPY --from=go-builder /out/wlow-agent       /usr/local/bin/wlow-agent
 COPY --from=firecracker /tools/firecracker   /usr/local/bin/firecracker
 COPY --from=kernel-builder /out/vmlinux      /var/lib/wlow/kernel/vmlinux
 
-# wlow-runner (Rust microVM runner) — build from https://github.com/wlow/wlow-runner
-# and supply via the build context: bin/linux-amd64/wlow-runner
-COPY bin/linux-amd64/wlow-runner /usr/local/bin/wlow-runner
+COPY --from=wlow-runner-download /wlow-runner /usr/local/bin/wlow-runner
 
 RUN mkdir -p /var/lib/wlow/rootfs /var/lib/wlow/snapshots
 

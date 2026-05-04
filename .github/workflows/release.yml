@@ -62,34 +62,21 @@ jobs:
         id: tag
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: Cross-compile Go binaries
-        run: make linux-amd64-bins
-
-      - name: Download wlow-runner binary
-        # Download the matching wlow-runner release from wlow/wlow-runner
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p bin/linux-amd64
-          gh release download "$TAG" \
-            --repo wlow/wlow-runner \
-            --pattern "wlow-runner-linux-amd64*" \
-            --output bin/linux-amd64/wlow-runner \
-            || echo "wlow-runner not found for $TAG — building without it"
-          chmod +x bin/linux-amd64/wlow-runner 2>/dev/null || true
-
-      - name: Build and push
+      - name: Build and push runtime image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: deploy/Dockerfile.prebuilt
+          file: deploy/Dockerfile
           platforms: linux/amd64
           push: true
+          build-args: |
+            WLOW_RUNNER_VERSION=${{ steps.tag.outputs.tag }}
           tags: |
-            ghcr.io/wlow/wlow-runtime:${{ steps.tag.outputs.tag }}
-            ghcr.io/wlow/wlow-runtime:latest
+            ghcr.io/wlow-io/wlow-runtime:${{ steps.tag.outputs.tag }}
+            ghcr.io/wlow-io/wlow-runtime:latest
           labels: |
-            org.opencontainers.image.source=https://github.com/wlow/wlow-core
+            org.opencontainers.image.source=https://github.com/wlow-io/wlow-core
             org.opencontainers.image.version=${{ steps.tag.outputs.tag }}
             org.opencontainers.image.licenses=Apache-2.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
