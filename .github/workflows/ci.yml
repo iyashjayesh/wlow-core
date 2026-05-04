@@ -31,7 +31,6 @@ jobs:
         run: |
           go build -tags no_wasm -o /dev/null ./cmd/wlow
           go build -tags no_wasm -o /dev/null ./cmd/orchestrator
-          go build -tags no_wasm -o /dev/null ./cmd/processor
           go build -tags no_wasm -o /dev/null ./cmd/wlow-runner
           go build -tags no_wasm -o /dev/null ./cmd/wlow-mcp
 
