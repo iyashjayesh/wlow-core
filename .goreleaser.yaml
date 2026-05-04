@@ -14,10 +14,10 @@ builds:
   - id: wlow
     binary: wlow
     main: ./cmd/wlow
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
+    goos: [ linux, darwin, windows ]
+    goarch: [ amd64, arm64 ]
     ignore:
-      - {goos: windows, goarch: arm64}
+      - { goos: windows, goarch: arm64 }
     env:
       - CGO_ENABLED=0
     flags:
@@ -28,15 +28,14 @@ builds:
       - -X main.Version={{.Version}}
       - -X main.BuildTime={{.Date}}
 
-
 # ── Archives ──────────────────────────────────────────────────────────────────
 
 archives:
   - id: wlow
-    formats: [tar.gz]
+    formats: [ tar.gz ]
     format_overrides:
       - goos: windows
-        formats: [zip]
+        formats: [ zip ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
@@ -108,11 +107,11 @@ release:
 # Requires HOMEBREW_TAP_TOKEN secret (PAT with contents:write on wlow/homebrew-tap)
 
 brews:
-  - ids: [wlow]
+  - ids: [ wlow ]
     name: wlow
     repository:
-      owner: wlow
-      name: homebrew-tap
+      owner: wlow-io
+      name: homebrew-tap # change this to whatever you name the repo
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     commit_author:
       name: wlow-bot
@@ -120,7 +119,8 @@ brews:
     commit_msg_template: "brew formula update for {{ .ProjectName }} {{ .Tag }}"
     directory: Formula
     homepage: https://github.com/wlow/wlow-core
-    description: "DAG workflow orchestrator — process, WASM, and Firecracker microVM processors"
+    description: "DAG workflow orchestrator — process, WASM, and Firecracker microVM
+      processors"
     license: Apache-2.0
     install: |
       bin.install "wlow"
