@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1.7
+# Fast image build using pre-compiled binaries from bin/linux-amd64/.
+# Build those first with: make linux-amd64-bins
+
+ARG FIRECRACKER_VERSION=v1.14.4
+FROM debian:bookworm-slim AS firecracker
+ARG FIRECRACKER_VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl tar \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tools
+RUN set -eux; \
+    curl -fL -o /tools/firecracker.tgz \
+      "https://github.com/firecracker-microvm/firecracker/releases/download/${FIRECRACKER_VERSION}/firecracker-${FIRECRACKER_VERSION}-x86_64.tgz"; \
+    tar -xzf /tools/firecracker.tgz -C /tools; \
+    find /tools -type f -name "firecracker-${FIRECRACKER_VERSION}-x86_64" -exec cp {} /tools/firecracker \; ; \
+    chmod +x /tools/firecracker
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates erofs-utils tini \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY bin/linux-amd64/orchestrator /usr/local/bin/orchestrator
+COPY bin/linux-amd64/wlow-runner /usr/local/bin/wlow-runner
+COPY bin/linux-amd64/wlow-runner-go /usr/local/bin/wlow-runner-go
+COPY bin/linux-amd64/wlow /usr/local/bin/wlow
+COPY bin/linux-amd64/wlow-mcp /usr/local/bin/wlow-mcp
+COPY bin/linux-amd64/processor /usr/local/bin/processor
+COPY bin/linux-amd64/wlow-agent /usr/local/bin/wlow-agent
+COPY bin/linux-amd64/vmlinux.bin /var/lib/wlow/kernel/vmlinux
+COPY --from=firecracker /tools/firecracker /usr/local/bin/firecracker
+
+RUN mkdir -p /var/lib/wlow/rootfs /var/lib/wlow/snapshots
+
+ENV NATS_URL=nats://nats:4222 \
+    STORE_BUCKET=workflow-state \
+    WLOW_DATA_DIR=/var/lib/wlow \
+    WLOW_AGENT_BINARY=/usr/local/bin/wlow-agent \
+    WLOW_KERNEL_PATH=/var/lib/wlow/kernel/vmlinux \
+    WLOW_FIRECRACKER_BINARY=/usr/local/bin/firecracker \
+    WLOW_FIRECRACKER_ENABLE_PCI=true \
+    WLOW_MKFS_EROFS=/usr/bin/mkfs.erofs
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/local/bin/orchestrator"]

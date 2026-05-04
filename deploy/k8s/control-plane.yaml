@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wlow-control-plane
+  labels:
+    app.kubernetes.io/name: wlow
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wlow
+      app.kubernetes.io/component: control-plane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wlow
+        app.kubernetes.io/component: control-plane
+    spec:
+      containers:
+        - name: orchestrator
+          # Replace with your registry image, e.g.:
+          # image: ghcr.io/your-org/wlow-runtime:latest
+          image: ghcr.io/wlow/wlow-runtime:latest
+          imagePullPolicy: Always
+          command: ["/usr/bin/tini", "--", "/usr/local/bin/orchestrator"]
+          env:
+            - name: NATS_URL
+              value: nats://nats.nats:4222
+            - name: STORE_BUCKET
+              value: workflow-state
+            - name: WORKFLOW_STREAM
+              value: WLOW_WORKFLOW
+            - name: WORKFLOW_SUBJECT_PREFIX
+              value: wlow.workflow
+            - name: PROCESSOR_STREAM
+              value: WLOW_PROCESSOR
+            - name: PROCESSOR_SUBJECT_PREFIX
+              value: wlow.processor
+          ports:
+            - name: dashboard
+              containerPort: 8085
+            - name: metrics
+              containerPort: 2112
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wlow-control-plane
+  labels:
+    app.kubernetes.io/name: wlow
+    app.kubernetes.io/component: control-plane
+spec:
+  selector:
+    app.kubernetes.io/name: wlow
+    app.kubernetes.io/component: control-plane
+  ports:
+    - name: dashboard
+      port: 8085
+      targetPort: dashboard
+    - name: metrics
+      port: 2112
+      targetPort: metrics

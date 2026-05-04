@@ -1,0 +1,128 @@
+version: 2
+
+project_name: wlow
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+# ── Binaries ──────────────────────────────────────────────────────────────────
+
+builds:
+  # wlow: user-facing CLI — cross-platform
+  - id: wlow
+    binary: wlow
+    main: ./cmd/wlow
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - {goos: windows, goarch: arm64}
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags=no_wasm
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.BuildTime={{.Date}}
+
+
+# ── Archives ──────────────────────────────────────────────────────────────────
+
+archives:
+  - id: wlow
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+# ── Checksums ─────────────────────────────────────────────────────────────────
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# ── Snapshot (for non-tag builds / testing) ───────────────────────────────────
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-dev"
+
+# ── Changelog ─────────────────────────────────────────────────────────────────
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+# ── GitHub Release ────────────────────────────────────────────────────────────
+
+release:
+  draft: false
+  prerelease: auto
+  replace_existing_draft: true
+  header: |
+    ## wlow {{ .Tag }}
+
+    A DAG workflow orchestrator — process, WASM, and Firecracker microVM processors over NATS.
+
+  footer: |
+    ## Install
+
+    **Linux / macOS:**
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/wlow/wlow-core/main/install.sh | sh
+    ```
+
+    **Homebrew:**
+    ```sh
+    brew install wlow/tap/wlow
+    ```
+
+    **Go install:**
+    ```sh
+    go install github.com/wlow/wlow-core/cmd/wlow@{{ .Tag }}
+    ```
+
+    **Verify checksum:**
+    ```sh
+    sha256sum --check checksums.txt
+    ```
+
+    ---
+    Full changelog: https://github.com/wlow/wlow-core/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# ── Homebrew tap ──────────────────────────────────────────────────────────────
+# Requires HOMEBREW_TAP_TOKEN secret (PAT with contents:write on wlow/homebrew-tap)
+
+brews:
+  - ids: [wlow]
+    name: wlow
+    repository:
+      owner: wlow
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: wlow-bot
+      email: bot@wlow.dev
+    commit_msg_template: "brew formula update for {{ .ProjectName }} {{ .Tag }}"
+    directory: Formula
+    homepage: https://github.com/wlow/wlow-core
+    description: "DAG workflow orchestrator — process, WASM, and Firecracker microVM processors"
+    license: Apache-2.0
+    install: |
+      bin.install "wlow"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/wlow --version 2>&1", 1)

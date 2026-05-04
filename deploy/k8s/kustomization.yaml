@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wlow
+resources:
+  - control-plane.yaml
+  - runner.yaml
+# Override the image tag for your environment:
+# images:
+#   - name: ghcr.io/wlow/wlow-runtime
+#     newTag: v0.1.0

@@ -8,8 +8,8 @@ Processors run in three execution tiers:
 |---------|--------------|-----|
 | **process** — OS subprocess | `wlow start` on any machine with NATS | No |
 | **wasm** — Wasmtime component | `wlow start --runtimes wasm` on any machine | No |
-| **cold-microvm-rootfs** — Firecracker VM | wlow runner image on a KVM host | Yes |
-| **snapshot-fork-microvm** — Firecracker from snapshot | wlow runner image on a KVM host | Yes |
+| **microvm** — Firecracker VM | wlow runner image on a KVM host | Yes |
+| **snapshot** — Firecracker from snapshot | wlow runner image on a KVM host | Yes |
 
 > **Status**: pre-1.0, actively developed.
 
@@ -110,7 +110,7 @@ wlow benchmark               Timing tests
 | Go SDK (`sdk.NewRunner`) | **No** | build your binary, run it |
 | Python/Node script | **No** | `wlow start --id P --cmd "python3 /app/p.py"` |
 | WASM component | **Yes** — binary stored in NATS | `wlow push`, then `wlow start --runtimes wasm` |
-| MicroVM (Dockerfile) | **Yes** — rootfs image in OCI | `wlow push --runtime cold-microvm-rootfs`, then deploy runner image |
+| MicroVM (Dockerfile) | **Yes** — rootfs image in OCI | `wlow push --runtime microvm`, then deploy runner image |
 
 ---
 
@@ -146,10 +146,10 @@ Scale by running more instances. They all share the same NATS task queue.
 
 ## MicroVM processors
 
-For `cold-microvm-rootfs` or `snapshot-fork-microvm`, you push a Dockerfile:
+For `microvm` or `snapshot`, you push a Dockerfile:
 
 ```sh
-wlow push --id my-proc --runtime cold-microvm-rootfs \
+wlow push --id my-proc --runtime microvm \
   --path my-proc/Dockerfile --entrypoint python3,/app/processor.py \
   --registry ghcr.io/your-org/wlow-artifacts
 ```
@@ -189,8 +189,8 @@ make linux-amd64-bins   # all binaries cross-compiled for linux/amd64
 |---------|-----|-----|
 | process | ~50ms | ~90ms |
 | wasm | ~25ms | ~45ms |
-| cold-microvm-rootfs | ~2.06s | ~2.12s |
-| snapshot-fork-microvm | ~862ms | ~924ms |
+| microvm | ~2.06s | ~2.12s |
+| snapshot | ~862ms | ~924ms |
 
 ---
 

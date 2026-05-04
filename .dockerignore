@@ -1,0 +1,14 @@
+.git
+bin/*
+!bin/linux-amd64
+!bin/linux-amd64/*
+runner-rs/target
+runner-rs/**/target
+coverage.out
+coverage.html
+tmp
+.DS_Store
+agent-tools
+mcps
+terminals
+agent-transcripts
