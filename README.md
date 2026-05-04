@@ -180,6 +180,7 @@ make linux-amd64-bins   # all binaries cross-compiled for linux/amd64
 | [docs/artifacts.md](docs/artifacts.md) | Manifest model and OCI storage |
 | [docs/install.md](docs/install.md) | Container image and Kubernetes deployment |
 | [docs/operations.md](docs/operations.md) | Env vars, NATS subjects, monitoring |
+| [docs/mcp.md](docs/mcp.md) | MCP server — AI agent and IDE integration |
 
 ---
 
