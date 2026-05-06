@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	gonats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -44,7 +45,11 @@ func (c *Client) SubmitAndWait(ctx context.Context, wf *workflow.Workflow) (*wor
 	if err != nil {
 		return nil, err
 	}
-	defer sub.Unsubscribe()
+	defer func() {
+		if err := sub.Unsubscribe(); err != nil {
+			slog.Default().Error("failed to unsubscribe", slog.String("error", err.Error()))
+		}
+	}()
 
 	if err := c.Submit(ctx, wf); err != nil {
 		return nil, err

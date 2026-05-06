@@ -133,7 +133,7 @@ func (s *Store) CancelWorkflow(ctx context.Context, wfID string) error {
 		st, _ := s.GetTaskState(ctx, wfID, id)
 		if st != nil && (st.Status == workflow.StatusQueued || st.Status == workflow.StatusPending) {
 			st.Status = workflow.StatusCancelled
-			s.StoreTaskState(ctx, wfID, id, st)
+			_ = s.StoreTaskState(ctx, wfID, id, st)
 		}
 	}
 	return nil

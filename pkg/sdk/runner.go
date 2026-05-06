@@ -149,11 +149,14 @@ func (r *Runner) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return r.shutdown()
+			r.shutdown()
+			return nil
 		case <-sig:
-			return r.shutdown()
+			r.shutdown()
+			return nil
 		case <-r.stop:
-			return r.shutdown()
+			r.shutdown()
+			return nil
 		default:
 			if len(r.inFlight) >= cap(r.inFlight) {
 				time.Sleep(50 * time.Millisecond)
@@ -175,26 +178,25 @@ func (r *Runner) Run(ctx context.Context) error {
 
 func (r *Runner) Stop() { close(r.stop) }
 
-func (r *Runner) shutdown() error {
+func (r *Runner) shutdown() {
 	r.log.Info("shutting down")
 	for len(r.inFlight) > 0 {
 		time.Sleep(50 * time.Millisecond)
 	}
-	return nil
 }
 
 func (r *Runner) handle(msg jetstream.Msg) {
 	var t workflow.Task
 	if err := json.Unmarshal(msg.Data(), &t); err != nil {
 		r.log.Error("unmarshal", "error", err)
-		msg.Nak()
+		_ = msg.Nak()
 		return
 	}
 
 	log := r.log.With("wf", t.WorkflowID, "task", t.ID)
 
 	if st, _ := r.store.GetTaskState(context.Background(), t.WorkflowID, t.ID); st != nil && st.Status == workflow.StatusCancelled {
-		msg.Ack()
+		_ = msg.Ack()
 		return
 	}
 
@@ -212,11 +214,11 @@ func (r *Runner) handle(msg jetstream.Msg) {
 
 	cancelSub, _ := r.client.SubscribeSync(fmt.Sprintf("workflow.cancel.%s", t.WorkflowID))
 	if cancelSub != nil {
-		defer cancelSub.Unsubscribe()
+		defer func() { _ = cancelSub.Unsubscribe() }()
 		go r.watchCancel(ctx, cancelSub, t.ID)
 	}
 
-	r.store.StoreTaskState(context.Background(), t.WorkflowID, t.ID, &workflow.TaskResult{
+	_ = r.store.StoreTaskState(context.Background(), t.WorkflowID, t.ID, &workflow.TaskResult{
 		WorkflowID:  t.WorkflowID,
 		TaskID:      t.ID,
 		ProcessorID: r.cfg.ProcessorID,
@@ -224,20 +226,20 @@ func (r *Runner) handle(msg jetstream.Msg) {
 	})
 
 	result := r.execute(ctx, &t)
-	r.store.StoreTaskState(context.Background(), result.WorkflowID, result.TaskID, result)
+	_ = r.store.StoreTaskState(context.Background(), result.WorkflowID, result.TaskID, result)
 
 	data, _ := json.Marshal(result)
 
 	if result.Status == workflow.StatusFailed || result.Status == workflow.StatusTimedOut {
 		if meta, _ := msg.Metadata(); meta != nil && int(meta.NumDelivered) < r.cfg.MaxRetries {
-			msg.Nak()
+			_ = msg.Nak()
 			return
 		}
 	}
 
-	r.client.Publish(context.Background(), fmt.Sprintf("workflow.result.%s", t.ID), data)
+	_ = r.client.Publish(context.Background(), fmt.Sprintf("workflow.result.%s", t.ID), data)
 	log.Info("done", "status", result.Status)
-	msg.Ack()
+	_ = msg.Ack()
 }
 
 func (r *Runner) execute(ctx context.Context, t *workflow.Task) *workflow.TaskResult {

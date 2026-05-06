@@ -99,7 +99,7 @@ func (r *Runner) Start(ctx context.Context) (jetstream.ConsumeContext, error) {
 		select {
 		case taskCh <- msg:
 		case <-workerCtx.Done():
-			msg.Nak()
+			_ = msg.Nak()
 		}
 	})
 	if err != nil {
@@ -213,16 +213,16 @@ func (r *Runner) HandleTask(msg jetstream.Msg) {
 	var t workflow.Task
 	if err := json.Unmarshal(msg.Data(), &t); err != nil {
 		r.log.Error("sandbox unmarshal failed", "error", err)
-		msg.Nak()
+		_ = msg.Nak()
 		return
 	}
 	result := r.execute(context.Background(), &t)
 	if shouldRetry(msg, result, r.cfg.MaxRetries) {
-		msg.Nak()
+		_ = msg.Nak()
 		return
 	}
 	_ = r.publishResult(context.Background(), result)
-	msg.Ack()
+	_ = msg.Ack()
 }
 
 func (r *Runner) execute(ctx context.Context, t *workflow.Task) *workflow.TaskResult {
@@ -320,13 +320,7 @@ func (r *Runner) dataDir() string {
 	return "/var/lib/wlow"
 }
 
-func descriptorFileName(digest string) string {
-	_, value, ok := strings.Cut(digest, ":")
-	if !ok {
-		return digest
-	}
-	return value
-}
+
 
 func (r *Runner) cachedResult(ctx context.Context, t *workflow.Task, m *artifact.Manifest, processorID, ref string) (string, *workflow.TaskResult, error) {
 	if r.cfg.OutputCache == nil || !m.Deterministic {
@@ -453,23 +447,4 @@ func shouldRetry(msg jetstream.Msg, result *workflow.TaskResult, maxRetries int)
 	return err == nil && meta != nil && int(meta.NumDelivered) < maxRetries
 }
 
-func linkOrCopy(src string, dst string) error {
-	if src == "" || dst == "" {
-		return errors.New("source and destination required")
-	}
-	if err := os.Link(src, dst); err == nil {
-		return nil
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
-}
+
