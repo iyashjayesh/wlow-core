@@ -205,10 +205,3 @@ func dedupeChunks(in []ChunkRef) []ChunkRef {
 	}
 	return out
 }
-
-func hasPrefix(value, prefix string) bool {
-	if len(value) < len(prefix) {
-		return false
-	}
-	return value[:len(prefix)] == prefix
-}

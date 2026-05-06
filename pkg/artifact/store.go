@@ -3,8 +3,6 @@ package artifact
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,28 +124,6 @@ func (s *Store) PutArtifact(ctx context.Context, m *Manifest, tags ...string) er
 		return err
 	}
 	return s.putTags(ctx, m, tags)
-}
-
-func validateDescriptor(desc OCIDescriptor, data []byte) error {
-	if err := validateOCIDigest(desc.Digest); err != nil {
-		return err
-	}
-	if desc.Size != int64(len(data)) {
-		return fmt.Errorf("descriptor size mismatch: %s", desc.Digest)
-	}
-	sum := sha256.Sum256(data)
-	expected := "sha256:" + hex.EncodeToString(sum[:])
-	if desc.Digest != expected {
-		return fmt.Errorf("descriptor digest mismatch: %s", desc.Digest)
-	}
-	return nil
-}
-
-func validateOCIDigest(digest string) error {
-	if !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+64 {
-		return fmt.Errorf("unsupported OCI digest: %s", digest)
-	}
-	return nil
 }
 
 func (s *Store) GetManifest(ctx context.Context, tenant, processorID, version string) (*Manifest, error) {
@@ -281,21 +257,6 @@ func (s *Store) putTags(ctx context.Context, m *Manifest, tags []string) error {
 		if _, err := s.manifests.Put(ctx, TagKey(m.Tenant, m.ProcessorID, tag), []byte(m.Version)); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (s *Store) enforceChunkQuota(ctx context.Context, tenant string, incoming int64) error {
-	quota, err := s.GetQuota(ctx, tenant)
-	if err != nil || quota.MaxChunkBytes <= 0 {
-		return err
-	}
-	used, err := s.tenantChunkBytes(ctx, tenant)
-	if err != nil {
-		return err
-	}
-	if used+incoming > quota.MaxChunkBytes {
-		return errors.New("tenant chunk quota exceeded")
 	}
 	return nil
 }

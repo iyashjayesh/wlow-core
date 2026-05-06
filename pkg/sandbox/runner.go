@@ -320,8 +320,6 @@ func (r *Runner) dataDir() string {
 	return "/var/lib/wlow"
 }
 
-
-
 func (r *Runner) cachedResult(ctx context.Context, t *workflow.Task, m *artifact.Manifest, processorID, ref string) (string, *workflow.TaskResult, error) {
 	if r.cfg.OutputCache == nil || !m.Deterministic {
 		return "", nil, nil
@@ -446,5 +444,3 @@ func shouldRetry(msg jetstream.Msg, result *workflow.TaskResult, maxRetries int)
 	meta, err := msg.Metadata()
 	return err == nil && meta != nil && int(meta.NumDelivered) < maxRetries
 }
-
-

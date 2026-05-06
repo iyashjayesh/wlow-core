@@ -1,15 +1,12 @@
 package build
 
 import (
-	"archive/tar"
 	"context"
 	"errors"
-	"fmt"
-	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/wlow/wlow/pkg/artifact"
 )
@@ -114,96 +111,11 @@ func runBuildctl(ctx context.Context, opts Options, dest string) error {
 	return cmd.Run()
 }
 
-func runBuildctlImage(ctx context.Context, opts Options, imageRef string) error {
-	contextDir := filepath.Dir(opts.Path)
-	args := []string{
-		"build",
-		"--frontend", "dockerfile.v0",
-		"--local", "context=" + contextDir,
-		"--local", "dockerfile=" + contextDir,
-		"--output", "type=image,name=" + imageRef + ",push=true,oci-mediatypes=true",
-	}
-	if opts.Platform != "" {
-		args = append(args, "--opt", "platform="+opts.Platform)
-	}
-	for _, secret := range opts.BuildSecrets {
-		args = append(args, "--secret", secret)
-	}
-	cmd := buildctlCommand(ctx, args)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
 func buildctlCommand(ctx context.Context, args []string) *exec.Cmd {
 	if addr := os.Getenv("BUILDKIT_HOST"); addr != "" {
 		args = append([]string{"--addr", addr}, args...)
 	}
 	return exec.CommandContext(ctx, "buildctl", args...)
-}
-
-func extractOCIArchive(path, dest string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	tr := tar.NewReader(file)
-	const maxEntries = 1 << 16
-	for count := 0; count < maxEntries; count++ {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if err := writeOCIEntry(dest, hdr, tr); err != nil {
-			return err
-		}
-	}
-	return errors.New("OCI archive entry limit exceeded")
-}
-
-func writeOCIEntry(dest string, hdr *tar.Header, tr *tar.Reader) error {
-	target, err := safeArchivePath(dest, hdr.Name)
-	if err != nil {
-		return err
-	}
-	switch hdr.Typeflag {
-	case tar.TypeDir:
-		return os.MkdirAll(target, os.FileMode(hdr.Mode)&0o777)
-	case tar.TypeReg, tar.TypeRegA:
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		return writeOCIFile(target, hdr, tr)
-	default:
-		return nil
-	}
-}
-
-func writeOCIFile(target string, hdr *tar.Header, tr *tar.Reader) error {
-	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode)&0o777)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = io.Copy(file, tr)
-	return err
-}
-
-func safeArchivePath(base, rel string) (string, error) {
-	clean := filepath.Clean("/" + rel)
-	joined := filepath.Join(base, clean)
-	out, err := filepath.Rel(base, joined)
-	if err != nil {
-		return "", err
-	}
-	if out == ".." || strings.HasPrefix(out, "../") {
-		return "", fmt.Errorf("archive entry escapes output: %s", rel)
-	}
-	return joined, nil
 }
 
 func microVMSpec(data []byte, opts Options, provenance map[string]string) *Spec {

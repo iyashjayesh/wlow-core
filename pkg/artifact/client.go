@@ -137,20 +137,3 @@ func blobManifest(tenant, hash string, size int64, opts PushOptions) *Manifest {
 	m.applyDefaults()
 	return m
 }
-
-func copyManifestOptions(dst *Manifest, src Manifest) {
-	dst.Runtime = src.Runtime
-	dst.IOProtocol = src.IOProtocol
-	dst.RuntimeConfig = src.RuntimeConfig
-	dst.Entrypoint = src.Entrypoint
-	dst.WITWorld = src.WITWorld
-	dst.Capabilities = src.Capabilities
-	dst.Deterministic = src.Deterministic
-	dst.ResourceHints = src.ResourceHints
-	dst.CompiledArtifact = src.CompiledArtifact
-	dst.BuildProvenance = src.BuildProvenance
-	dst.Cache = src.Cache
-	if len(src.Artifacts) > 0 {
-		dst.Artifacts = src.Artifacts
-	}
-}

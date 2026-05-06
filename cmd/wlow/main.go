@@ -533,7 +533,7 @@ func writeTarEntry(dest string, header *tar.Header, tr *tar.Reader) error {
 	switch header.Typeflag {
 	case tar.TypeDir:
 		return os.MkdirAll(target, os.FileMode(header.Mode)&0o777)
-	case tar.TypeReg, tar.TypeRegA:
+	case tar.TypeReg:
 		return writeTarFile(target, header, tr)
 	case tar.TypeSymlink:
 		return writeTarSymlink(dest, target, header.Linkname)
