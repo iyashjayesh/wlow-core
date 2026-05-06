@@ -2,7 +2,9 @@ package artifact
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,14 +21,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/zeebo/blake3"
 )
 
 const (
-	MediaTypeSnapshotConfig = "application/vnd.wlow.snapshot.config.v1+json"
-	MediaTypeSnapshotState  = "application/vnd.wlow.snapshot.state.v1+json"
-	MediaTypeSnapshotMemory = "application/vnd.wlow.snapshot.memory.v1"
-	MediaTypeSnapshotRootfs = "application/vnd.wlow.snapshot.rootfs.v1"
-	MediaTypeRootfsEROFS    = "application/vnd.wlow.rootfs.erofs.v1"
+	MediaTypeSnapshotConfig      = "application/vnd.wlow.snapshot.config.v1+json"
+	MediaTypeSnapshotState       = "application/vnd.wlow.snapshot.state.v1+json"
+	MediaTypeSnapshotMemory      = "application/vnd.wlow.snapshot.memory.v1"
+	MediaTypeSnapshotMemoryIndex = "application/vnd.wlow.snapshot.memory.index.v1+json"
+	MediaTypeSnapshotMemoryChunk = "application/vnd.wlow.snapshot.memory.chunk.v1+gzip"
+	MediaTypeSnapshotRootfs      = "application/vnd.wlow.snapshot.rootfs.v1"
+	MediaTypeRootfsEROFS         = "application/vnd.wlow.rootfs.erofs.v1"
 )
 
 type RemoteImageDescriptor struct {
@@ -179,7 +184,7 @@ func PushSnapshotImage(ctx context.Context, imageRef string, files SnapshotFiles
 	if err != nil {
 		return SnapshotObjects{}, "", 0, err
 	}
-	layers, refs, err := snapshotLayers(files)
+	layers, refs, chunkSizeTotal, err := snapshotLayers(ref.Context(), files)
 	if err != nil {
 		return SnapshotObjects{}, "", 0, err
 	}
@@ -195,7 +200,7 @@ func PushSnapshotImage(ctx context.Context, imageRef string, files SnapshotFiles
 	if err != nil {
 		return SnapshotObjects{}, "", 0, err
 	}
-	size := refs.Config.Size + refs.State.Size + refs.Memory.Size + refs.Rootfs.Size
+	size := refs.Config.Size + refs.State.Size + refs.MemoryIndex.Size + refs.Rootfs.Size + chunkSizeTotal
 	return refs, hash.String(), size, nil
 }
 
@@ -247,7 +252,7 @@ func PushRootfsImage(ctx context.Context, imageRef string, rootfsPath string) (*
 }
 
 func attachSnapshotRepo(objects *SnapshotObjects, repo name.Repository) {
-	for _, ref := range []*RemoteRef{objects.Config, objects.State, objects.Memory, objects.Rootfs} {
+	for _, ref := range []*RemoteRef{objects.Config, objects.State, objects.MemoryIndex, objects.Rootfs} {
 		if ref != nil {
 			ref.Ref = repo.Digest(ref.Digest).Name()
 		}
@@ -336,7 +341,7 @@ func remoteOptions(ctx context.Context) []remote.Option {
 	})))
 }
 
-func snapshotLayers(files SnapshotFiles) ([]v1.Layer, SnapshotObjects, error) {
+func snapshotLayers(repo name.Repository, files SnapshotFiles) ([]v1.Layer, SnapshotObjects, int64, error) {
 	items := []struct {
 		role      string
 		path      string
@@ -345,27 +350,120 @@ func snapshotLayers(files SnapshotFiles) ([]v1.Layer, SnapshotObjects, error) {
 	}{
 		{RoleSnapshotConfig, files.Config, MediaTypeSnapshotConfig, func(o *SnapshotObjects, r *RemoteRef) { o.Config = r }},
 		{RoleSnapshotState, files.State, MediaTypeSnapshotState, func(o *SnapshotObjects, r *RemoteRef) { o.State = r }},
-		{RoleSnapshotMemory, files.Memory, MediaTypeSnapshotMemory, func(o *SnapshotObjects, r *RemoteRef) { o.Memory = r }},
 		{RoleSnapshotRootfs, files.Rootfs, MediaTypeSnapshotRootfs, func(o *SnapshotObjects, r *RemoteRef) { o.Rootfs = r }},
 	}
 	layers := make([]v1.Layer, 0, len(items))
 	objects := SnapshotObjects{}
+	var chunkCompressedTotal int64
 	for idx := 0; idx < len(items); idx++ {
 		data, err := os.ReadFile(items[idx].path)
 		if err != nil {
-			return nil, objects, err
+			return nil, objects, 0, err
 		}
 		layer := static.NewLayer(data, items[idx].mediaType)
 		digest, err := layer.Digest()
 		if err != nil {
-			return nil, objects, err
+			return nil, objects, 0, err
 		}
 		size, err := layer.Size()
 		if err != nil {
-			return nil, objects, err
+			return nil, objects, 0, err
 		}
 		items[idx].assign(&objects, &RemoteRef{Digest: digest.String(), Size: size, MediaType: string(items[idx].mediaType)})
 		layers = append(layers, layer)
 	}
-	return layers, objects, nil
+	chunkLayers, indexRef, chunkTotal, err := snapshotMemoryLayers(repo, files.Memory)
+	if err != nil {
+		return nil, objects, 0, err
+	}
+	objects.MemoryIndex = indexRef
+	chunkCompressedTotal = chunkTotal
+	layers = append(layers, chunkLayers...)
+	return layers, objects, chunkCompressedTotal, nil
+}
+
+func snapshotMemoryLayers(repo name.Repository, memoryPath string) ([]v1.Layer, *RemoteRef, int64, error) {
+	file, err := os.Open(memoryPath)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	defer file.Close()
+	buffer := make([]byte, DefaultSnapshotChunkSize)
+	chunks := make([]SnapshotMemoryChunk, 0, 128)
+	layers := make([]v1.Layer, 0, 128)
+	var offset int64
+	var compressedTotal int64
+	for chunkID := 0; chunkID < MaxSnapshotChunks; chunkID++ {
+		n, readErr := file.Read(buffer)
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return nil, nil, 0, readErr
+		}
+		if n <= 0 {
+			break
+		}
+		raw := append([]byte(nil), buffer[:n]...)
+		layer := static.NewLayer(raw, MediaTypeSnapshotMemoryChunk)
+		digest, err := layer.Digest()
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		size, err := layer.Size()
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		sha := sha256.Sum256(raw)
+		b3 := blake3.Sum256(raw)
+		chunks = append(chunks, SnapshotMemoryChunk{
+			Offset:           offset,
+			Ref:              repo.Digest(digest.String()).Name(),
+			Digest:           digest.String(),
+			CompressedSize:   size,
+			UncompressedSize: int64(n),
+			Compression:      "gzip",
+			SHA256:           hex.EncodeToString(sha[:]),
+			BLAKE3:           hex.EncodeToString(b3[:]),
+		})
+		layers = append(layers, layer)
+		offset += int64(n)
+		compressedTotal += size
+		if offset > MaxSnapshotMemoryBytes {
+			return nil, nil, 0, fmt.Errorf("snapshot memory too large: %d", offset)
+		}
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+	}
+	if len(chunks) == 0 {
+		return nil, nil, 0, errors.New("snapshot memory file is empty")
+	}
+	index := SnapshotMemoryIndex{
+		Version:     SnapshotMemoryIndexVersionV1,
+		ChunkSize:   DefaultSnapshotChunkSize,
+		MemoryBytes: offset,
+		Chunks:      chunks,
+		Layout:      "fixed",
+	}
+	if err := index.Validate(); err != nil {
+		return nil, nil, 0, err
+	}
+	indexPayload, err := json.Marshal(index)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	indexLayer := static.NewLayer(indexPayload, MediaTypeSnapshotMemoryIndex)
+	indexDigest, err := indexLayer.Digest()
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	indexSize, err := indexLayer.Size()
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	indexRef := &RemoteRef{
+		Digest:    indexDigest.String(),
+		Size:      indexSize,
+		MediaType: string(MediaTypeSnapshotMemoryIndex),
+	}
+	layers = append(layers, indexLayer)
+	return layers, indexRef, compressedTotal, nil
 }

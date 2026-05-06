@@ -128,18 +128,18 @@ func ManifestRemote(m *Manifest, role string) *RemoteRef {
 }
 
 type SnapshotObjects struct {
-	Config *RemoteRef
-	State  *RemoteRef
-	Memory *RemoteRef
-	Rootfs *RemoteRef
+	Config      *RemoteRef
+	State       *RemoteRef
+	MemoryIndex *RemoteRef
+	Rootfs      *RemoteRef
 }
 
 func ManifestSnapshotObjects(m *Manifest) SnapshotObjects {
 	return SnapshotObjects{
-		Config: ManifestRemote(m, RoleSnapshotConfig),
-		State:  ManifestRemote(m, RoleSnapshotState),
-		Memory: ManifestRemote(m, RoleSnapshotMemory),
-		Rootfs: ManifestRemote(m, RoleSnapshotRootfs),
+		Config:      ManifestRemote(m, RoleSnapshotConfig),
+		State:       ManifestRemote(m, RoleSnapshotState),
+		MemoryIndex: ManifestRemote(m, RoleSnapshotMemoryIndex),
+		Rootfs:      ManifestRemote(m, RoleSnapshotRootfs),
 	}
 }
 
@@ -176,7 +176,6 @@ func ManifestRemoteRefs(m *Manifest) []RemoteRef {
 	}
 	return out
 }
-
 
 func appendArtifactChunks(out []ChunkRef, artifact Artifact) []ChunkRef {
 	if artifact.Blob != nil {

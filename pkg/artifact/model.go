@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"time"
-
 )
 
 const (
@@ -20,8 +19,8 @@ const (
 	DefaultChunkMax     = 256 * 1024
 	DefaultMaxChunkSize = DefaultChunkMax
 
-	BlobBucket      = "wlow-artifact-blobs"    // inline binary artifacts (process scripts, WASM)
-	ChunkBucket     = "wlow-artifact-chunks"   // legacy; unused, kept for migration
+	BlobBucket      = "wlow-artifact-blobs"  // inline binary artifacts (process scripts, WASM)
+	ChunkBucket     = "wlow-artifact-chunks" // legacy; unused, kept for migration
 	ManifestBucket  = "wlow-artifact-manifests"
 	RefBucket       = "wlow-artifact-refs"
 	TenantKeyBucket = "wlow-tenant-keys"
@@ -84,13 +83,14 @@ const (
 )
 
 const (
-	RoleOCIIndex        = "oci.index"
-	RoleRootfs          = "rootfs"
-	RoleSnapshotConfig  = "snapshot.config"
-	RoleSnapshotState   = "snapshot.state"
-	RoleSnapshotMemory  = "snapshot.memory"
-	RoleSnapshotRootfs  = "snapshot.rootfs"
-	RoleSnapshotRuntime = "snapshot.runtime"
+	RoleOCIIndex            = "oci.index"
+	RoleRootfs              = "rootfs"
+	RoleSnapshotConfig      = "snapshot.config"
+	RoleSnapshotState       = "snapshot.state"
+	RoleSnapshotMemory      = "snapshot.memory"
+	RoleSnapshotMemoryIndex = "snapshot.memory.index"
+	RoleSnapshotRootfs      = "snapshot.rootfs"
+	RoleSnapshotRuntime     = "snapshot.runtime"
 )
 
 type ChunkRef struct {
@@ -189,7 +189,6 @@ type CachePolicy struct {
 	Enabled bool          `json:"enabled"`
 	TTL     time.Duration `json:"ttl,omitempty"`
 }
-
 
 func (m *Manifest) Validate() error {
 	if m == nil {

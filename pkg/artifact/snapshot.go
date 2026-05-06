@@ -20,10 +20,11 @@ type SnapshotFiles struct {
 }
 
 const (
-	SnapshotConfigFile = "vm-config.json"
-	SnapshotStateFile  = "vm-state.bin"
-	SnapshotMemoryFile = "vm-memory.bin"
-	SnapshotRootfsFile = "rootfs.img"
+	SnapshotConfigFile      = "vm-config.json"
+	SnapshotStateFile       = "vm-state.bin"
+	SnapshotMemoryFile      = "vm-memory.bin"
+	SnapshotMemoryIndexFile = "snapshot.memory.index"
+	SnapshotRootfsFile      = "rootfs.img"
 )
 
 func (s *Store) PutSnapshotArtifact(ctx context.Context, source *Manifest, version string, imageRef string, files SnapshotFiles, tags ...string) (*Manifest, error) {
@@ -88,19 +89,19 @@ func copySnapshotRuntimeArtifacts(dst map[string]Artifact, src map[string]Artifa
 
 func snapshotArtifacts(objects SnapshotObjects) map[string]Artifact {
 	return map[string]Artifact{
-		RoleSnapshotConfig: {Kind: KindRemoteObject, Remote: objects.Config},
-		RoleSnapshotState:  {Kind: KindRemoteObject, Remote: objects.State},
-		RoleSnapshotMemory: {Kind: KindRemoteObject, Remote: objects.Memory},
-		RoleSnapshotRootfs: {Kind: KindRemoteObject, Remote: objects.Rootfs},
+		RoleSnapshotConfig:      {Kind: KindRemoteObject, Remote: objects.Config},
+		RoleSnapshotState:       {Kind: KindRemoteObject, Remote: objects.State},
+		RoleSnapshotMemoryIndex: {Kind: KindRemoteObject, Remote: objects.MemoryIndex},
+		RoleSnapshotRootfs:      {Kind: KindRemoteObject, Remote: objects.Rootfs},
 	}
 }
 
 func SnapshotObjectFiles(objects SnapshotObjects) map[string]*RemoteRef {
 	return map[string]*RemoteRef{
-		SnapshotConfigFile: objects.Config,
-		SnapshotStateFile:  objects.State,
-		SnapshotMemoryFile: objects.Memory,
-		SnapshotRootfsFile: objects.Rootfs,
+		SnapshotConfigFile:      objects.Config,
+		SnapshotStateFile:       objects.State,
+		SnapshotMemoryIndexFile: objects.MemoryIndex,
+		SnapshotRootfsFile:      objects.Rootfs,
 	}
 }
 
@@ -110,8 +111,8 @@ func assignSnapshotObject(objects *SnapshotObjects, role string, ref *RemoteRef)
 		objects.Config = ref
 	case RoleSnapshotState:
 		objects.State = ref
-	case RoleSnapshotMemory:
-		objects.Memory = ref
+	case RoleSnapshotMemoryIndex:
+		objects.MemoryIndex = ref
 	case RoleSnapshotRootfs:
 		objects.Rootfs = ref
 	}

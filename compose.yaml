@@ -1,0 +1,141 @@
+# Portable local development stack.
+#
+# Works on macOS/Windows/Linux for NATS, BuildKit, registry, and CLI-driven
+# cold-rootfs/WASM build workflows. Firecracker snapshot preparation still
+# requires a real Linux host with /dev/kvm; enable the linux-kvm profile only
+# on machines where that device exists.
+
+name: wlow
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command:
+      - --jetstream
+      - --store_dir=/data
+      - --http_port=8222
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  buildkit:
+    image: moby/buildkit:rootless
+    command:
+      - --addr
+      - tcp://0.0.0.0:1234
+      - --addr
+      - unix:///run/user/1000/buildkit/buildkitd.sock
+      - --oci-worker-no-process-sandbox
+    security_opt:
+      - seccomp=unconfined
+    ports:
+      - "1234:1234"
+    volumes:
+      - buildkit-data:/home/user/.local/share/buildkit
+    healthcheck:
+      test: ["CMD", "buildctl", "--addr", "tcp://127.0.0.1:1234", "debug", "workers"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+
+  wlow-dev:
+    profiles: ["tools"]
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM moby/buildkit:rootless AS buildkit
+        FROM golang:1.23-bookworm
+        RUN apt-get update \
+         && apt-get install -y --no-install-recommends ca-certificates curl erofs-utils git make \
+         && rm -rf /var/lib/apt/lists/*
+        COPY --from=buildkit /usr/bin/buildctl /usr/local/bin/buildctl
+        WORKDIR /workspace
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    environment:
+      NATS_URL: nats://nats:4222
+      BUILDKIT_HOST: tcp://buildkit:1234
+      WLOW_REGISTRY: registry:5000/wlow-artifacts
+      WLOW_SNAPSHOT_REGISTRY: registry:5000/wlow-snapshots
+      WLOW_AGENT_BINARY: /workspace/bin/linux-amd64/wlow-agent
+      WLOW_MKFS_EROFS: /usr/bin/mkfs.erofs
+    volumes:
+      - .:/workspace
+      - go-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    depends_on:
+      nats:
+        condition: service_healthy
+      buildkit:
+        condition: service_healthy
+      registry:
+        condition: service_started
+
+  control-plane:
+    profiles: ["control-plane"]
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM golang:1.23-bookworm
+        WORKDIR /workspace
+    working_dir: /workspace
+    command: ["go", "run", "./cmd/wlow", "start", "--control-plane"]
+    environment:
+      NATS_URL: nats://nats:4222
+    volumes:
+      - .:/workspace
+      - go-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    depends_on:
+      nats:
+        condition: service_healthy
+
+  wlow-runner-kvm:
+    profiles: ["linux-kvm"]
+    platform: linux/amd64
+    image: ${WLOW_RUNTIME_IMAGE:-ghcr.io/wlow/wlow-runtime:latest}
+    command: ["/usr/local/bin/wlow-runner"]
+    privileged: true
+    devices:
+      - /dev/kvm:/dev/kvm
+    environment:
+      NATS_URL: nats://nats:4222
+      WLOW_RUNTIMES: cold-microvm-rootfs,snapshot-fork-microvm
+      WLOW_DATA_DIR: /var/lib/wlow/data
+      WLOW_REGISTRY: registry:5000/wlow-artifacts
+      WLOW_SNAPSHOT_REGISTRY: registry:5000/wlow-snapshots
+      WLOW_AGENT_BINARY: /usr/local/bin/wlow-agent
+      WLOW_KERNEL_PATH: /var/lib/wlow/kernel/vmlinux
+      WLOW_FIRECRACKER_BINARY: /usr/local/bin/firecracker
+      WLOW_FIRECRACKER_ENABLE_PCI: "true"
+    volumes:
+      - runner-data:/var/lib/wlow/data
+    depends_on:
+      nats:
+        condition: service_healthy
+      registry:
+        condition: service_started
+
+volumes:
+  nats-data:
+  buildkit-data:
+  registry-data:
+  runner-data:
+  go-cache:
+  go-build-cache:
