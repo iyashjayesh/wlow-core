@@ -128,7 +128,6 @@ func (s *Store) PutArtifact(ctx context.Context, m *Manifest, tags ...string) er
 	return s.putTags(ctx, m, tags)
 }
 
-
 func validateDescriptor(desc OCIDescriptor, data []byte) error {
 	if err := validateOCIDigest(desc.Digest); err != nil {
 		return err

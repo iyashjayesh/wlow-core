@@ -313,8 +313,6 @@ func (r *Runner) materializeSnapshot(ctx context.Context, manifest *artifact.Man
 	return nil
 }
 
-
-
 func (r *Runner) dataDir() string {
 	if r.cfg.DataDir != "" {
 		return r.cfg.DataDir

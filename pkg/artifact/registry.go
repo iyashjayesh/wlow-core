@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -275,12 +276,21 @@ func PullRemoteFile(ctx context.Context, remoteRef *RemoteRef, dest string) erro
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			slog.Default().Error("close remote layer reader failed", "error", err)
+		}
+	}()
+
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if err := out.Close(); err != nil {
+			slog.Default().Error("close destination file failed", "error", err)
+		}
+	}()
 	n, err := io.Copy(out, rc)
 	if err != nil {
 		return err
@@ -311,12 +321,20 @@ func PullOCILayer(ctx context.Context, imageRef, digest, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			slog.Default().Error("close remote layer reader failed", "error", err)
+		}
+	}()
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if err := out.Close(); err != nil {
+			slog.Default().Error("close destination file failed", "error", err)
+		}
+	}()
 	_, err = io.Copy(out, rc)
 	return err
 }
