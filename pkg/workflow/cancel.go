@@ -39,7 +39,7 @@ func NewCancelHandler(cfg CancelHandlerConfig) *CancelHandler {
 
 // HandleCancel processes a workflow cancellation message.
 func (h *CancelHandler) HandleCancel(msg jetstream.Msg) {
-	var c WorkflowCancel
+	var c Cancel
 	if err := json.Unmarshal(msg.Data(), &c); err != nil {
 		h.log.Error("unmarshal failed", "error", err)
 		_ = msg.Nak()
@@ -54,7 +54,7 @@ func (h *CancelHandler) HandleCancel(msg jetstream.Msg) {
 		return
 	}
 
-	_ = h.pub.Publish(context.Background(), WorkflowCancelSubject(h.workflowSubjectPrefix, c.WorkflowID), nil)
+	_ = h.pub.Publish(context.Background(), CancelSubject(h.workflowSubjectPrefix, c.WorkflowID), nil)
 	log.Info("cancelled")
 	_ = msg.Ack()
 }

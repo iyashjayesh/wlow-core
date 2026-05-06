@@ -31,12 +31,12 @@ func ResultFilterSubject(prefix string) string {
 	return subjectPrefix(prefix) + ".result.>"
 }
 
-// CancelSubject returns the subject for workflow cancellation requests.
-func CancelSubject(prefix string) string {
+// CancelRequestSubject returns the subject for workflow cancellation requests.
+func CancelRequestSubject(prefix string) string {
 	return subjectPrefix(prefix) + ".cancel"
 }
 
-// WorkflowCancelSubject returns the subject for a specific workflow cancellation.
-func WorkflowCancelSubject(prefix, workflowID string) string {
-	return fmt.Sprintf("%s.cancel.%s", subjectPrefix(prefix), workflowID)
+// CancelSubject returns the subject for a specific workflow cancellation.
+func CancelSubject(prefix, workflowID string) string {
+	return fmt.Sprintf("%s.cancel.%s", prefix, workflowID)
 }

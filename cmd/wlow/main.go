@@ -356,7 +356,7 @@ func buildProcessor(ctx context.Context, cfg *pushConfig) (*build.Spec, func(), 
 	return spec, cleanup, nil
 }
 
-func usesObjectUpload(cfg *pushConfig) bool {
+func usesObjectUpload(_ *pushConfig) bool {
 	return false
 }
 

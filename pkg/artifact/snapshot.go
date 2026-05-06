@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// SnapshotFiles contains local file paths for a microVM snapshot.
 type SnapshotFiles struct {
 	Config string
 	State  string
@@ -14,13 +15,19 @@ type SnapshotFiles struct {
 }
 
 const (
-	SnapshotConfigFile      = "vm-config.json"
-	SnapshotStateFile       = "vm-state.bin"
-	SnapshotMemoryFile      = "vm-memory.bin"
+	// SnapshotConfigFile is the standard filename for microVM snapshot configuration.
+	SnapshotConfigFile = "vm-config.json"
+	// SnapshotStateFile is the standard filename for microVM CPU and device state.
+	SnapshotStateFile = "vm-state.bin"
+	// SnapshotMemoryFile is the standard filename for microVM memory dump.
+	SnapshotMemoryFile = "vm-memory.bin"
+	// SnapshotMemoryIndexFile is the standard filename for microVM memory page index.
 	SnapshotMemoryIndexFile = "snapshot.memory.index"
-	SnapshotRootfsFile      = "rootfs.img"
+	// SnapshotRootfsFile is the standard filename for microVM root filesystem image.
+	SnapshotRootfsFile = "rootfs.img"
 )
 
+// PutSnapshotArtifact uploads a microVM snapshot to the artifact store.
 func (s *Store) PutSnapshotArtifact(ctx context.Context, source *Manifest, version string, imageRef string, files SnapshotFiles, tags ...string) (*Manifest, error) {
 	if s == nil {
 		return nil, errors.New("artifact store required")
@@ -90,6 +97,7 @@ func snapshotArtifacts(objects SnapshotObjects) map[string]Artifact {
 	}
 }
 
+// SnapshotObjectFiles maps microVM snapshot objects to their external remote references.
 func SnapshotObjectFiles(objects SnapshotObjects) map[string]*RemoteRef {
 	return map[string]*RemoteRef{
 		SnapshotConfigFile:      objects.Config,

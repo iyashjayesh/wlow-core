@@ -17,6 +17,7 @@ import (
 	"github.com/wlow/wlow/pkg/workflow"
 )
 
+// RunnerConfig contains the configuration for a processor SDK runner.
 type RunnerConfig struct {
 	NATSUrl     string
 	ProcessorID string
@@ -29,6 +30,7 @@ type RunnerConfig struct {
 	Logger      *slog.Logger
 }
 
+// DefaultRunnerConfig returns the default configuration for a runner.
 func DefaultRunnerConfig() RunnerConfig {
 	return RunnerConfig{
 		NATSUrl:     "nats://localhost:4222",
@@ -41,6 +43,7 @@ func DefaultRunnerConfig() RunnerConfig {
 	}
 }
 
+// Runner manages the execution of a processor by listening to NATS.
 type Runner struct {
 	cfg      RunnerConfig
 	handler  Handler
@@ -100,6 +103,7 @@ func NewRunnerFor[In, Out any](cfg RunnerConfig, p Processor[In, Out]) (*Runner,
 	return NewRunner(cfg, Wrap(p))
 }
 
+// Run starts the runner and blocks until it is stopped or a signal is received.
 func (r *Runner) Run(ctx context.Context) error {
 	client, err := nats.NewClient(nats.Config{URL: r.cfg.NATSUrl})
 	if err != nil {
@@ -176,6 +180,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 }
 
+// Stop sends a signal to stop the runner.
 func (r *Runner) Stop() { close(r.stop) }
 
 func (r *Runner) shutdown() {
@@ -237,7 +242,7 @@ func (r *Runner) handle(msg jetstream.Msg) {
 		}
 	}
 
-	_ = r.client.Publish(context.Background(), fmt.Sprintf("workflow.result.%s", t.ID), data)
+	_, _ = r.client.Publish(context.Background(), fmt.Sprintf("workflow.result.%s", t.ID), data)
 	log.Info("done", "status", result.Status)
 	_ = msg.Ack()
 }
@@ -291,6 +296,7 @@ func (r *Runner) watchCancel(ctx context.Context, sub *gonats.Subscription, task
 	}
 }
 
+// ReportProgress updates the progress of the current workflow in the store.
 func (r *Runner) ReportProgress(ctx context.Context, wfID string, _ int) error {
 	return r.store.UpdateProgress(ctx, wfID)
 }

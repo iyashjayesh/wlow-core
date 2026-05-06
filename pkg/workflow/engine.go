@@ -16,7 +16,7 @@ type Store interface {
 	GetTaskState(ctx context.Context, wfID, taskID string) (*TaskResult, error)
 	IsWorkflowCompleted(ctx context.Context, wfID string) (bool, error)
 	CancelWorkflow(ctx context.Context, wfID string) error
-	AggregateResult(ctx context.Context, wfID string) (*WorkflowResult, error)
+	AggregateResult(ctx context.Context, wfID string) (*Result, error)
 	UpdateProgress(ctx context.Context, wfID string) error
 }
 

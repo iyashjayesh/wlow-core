@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -19,11 +18,15 @@ import (
 )
 
 const (
-	DefaultStreamName    = "WLOW_PROCESSOR"
+	// DefaultStreamName is the default NATS JetStream name for processor tasks.
+	DefaultStreamName = "WLOW_PROCESSOR"
+	// DefaultSubjectPrefix is the default NATS subject prefix for processor tasks.
 	DefaultSubjectPrefix = "wlow.processor"
+	// DefaultFilterSubject is the default NATS subject filter for sandbox tasks.
 	DefaultFilterSubject = DefaultSubjectPrefix + ".sandbox.>"
 )
 
+// RunnerConfig contains the configuration for a sandbox Runner.
 type RunnerConfig struct {
 	Client                 *wlownats.Client
 	Store                  workflow.Store
@@ -46,6 +49,7 @@ type RunnerConfig struct {
 	Logger                 *slog.Logger
 }
 
+// Runner listens for and executes sandboxed tasks.
 type Runner struct {
 	cfg RunnerConfig
 	log *slog.Logger
@@ -56,6 +60,7 @@ type runnerConsumeContext struct {
 	cancel context.CancelFunc
 }
 
+// NewRunner creates a new sandbox Runner.
 func NewRunner(cfg RunnerConfig) (*Runner, error) {
 	if cfg.Client == nil {
 		return nil, errors.New("nats client required")
@@ -80,6 +85,7 @@ func NewRunner(cfg RunnerConfig) (*Runner, error) {
 	return &Runner{cfg: cfg, log: cfg.Logger}, nil
 }
 
+// Start begins consuming tasks from NATS.
 func (r *Runner) Start(ctx context.Context) (jetstream.ConsumeContext, error) {
 	stream, err := r.cfg.Client.CreateStream(ctx, streamConfig(r.cfg))
 	if err != nil {
@@ -209,6 +215,7 @@ func digestFromCacheName(name string) string {
 	return "sha256:" + value
 }
 
+// HandleTask processes a single NATS message as a workflow task.
 func (r *Runner) HandleTask(msg jetstream.Msg) {
 	var t workflow.Task
 	if err := json.Unmarshal(msg.Data(), &t); err != nil {

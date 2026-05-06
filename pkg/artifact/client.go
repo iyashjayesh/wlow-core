@@ -13,11 +13,13 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// Client is a NATS-based artifact service client.
 type Client struct {
 	nc      *nats.Conn
 	timeout time.Duration
 }
 
+// PushOptions configures the creation and upload of an artifact.
 type PushOptions struct {
 	Tenant      string
 	ProcessorID string
@@ -26,6 +28,7 @@ type PushOptions struct {
 	Manifest    Manifest
 }
 
+// NewClient creates a new artifact service client.
 func NewClient(nc *nats.Conn, timeout time.Duration) (*Client, error) {
 	if nc == nil {
 		return nil, errors.New("nats connection required")

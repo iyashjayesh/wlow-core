@@ -17,6 +17,7 @@ const (
 	tenantKeySize     = 32 // bytes, for tenant-scoped BLAKE3 keys
 )
 
+// Store manages the persistence and retrieval of manifests and artifacts.
 type Store struct {
 	manifests  jetstream.KeyValue
 	refs       jetstream.KeyValue
@@ -25,6 +26,7 @@ type Store struct {
 	blobs      jetstream.KeyValue
 }
 
+// StoreConfig configures the storage buckets used by the artifact store.
 type StoreConfig struct {
 	BlobBucket      string
 	ManifestBucket  string
@@ -34,6 +36,7 @@ type StoreConfig struct {
 	MaxBytes        int64
 }
 
+// TenantQuota defines resource limits for a specific tenant.
 type TenantQuota struct {
 	MaxChunkBytes    int64 `json:"max_chunk_bytes,omitempty"`
 	MaxSnapshotBytes int64 `json:"max_snapshot_bytes,omitempty"`
@@ -41,6 +44,7 @@ type TenantQuota struct {
 	MaxTemplates     int64 `json:"max_templates,omitempty"`
 }
 
+// NewStore creates a new artifact store using the provided JetStream context.
 func NewStore(ctx context.Context, js jetstream.JetStream, cfg StoreConfig) (*Store, error) {
 	if js == nil {
 		return nil, errors.New("jetstream required")
@@ -98,6 +102,7 @@ func (s *Store) GetBlobData(ctx context.Context, tenant, hash string) ([]byte, e
 	return entry.Value(), nil
 }
 
+// PutArtifact stores a manifest and updates reference counts for its components.
 func (s *Store) PutArtifact(ctx context.Context, m *Manifest, tags ...string) error {
 	if s == nil {
 		return errors.New("artifact store required")
@@ -126,6 +131,7 @@ func (s *Store) PutArtifact(ctx context.Context, m *Manifest, tags ...string) er
 	return s.putTags(ctx, m, tags)
 }
 
+// GetManifest retrieves a manifest by its version.
 func (s *Store) GetManifest(ctx context.Context, tenant, processorID, version string) (*Manifest, error) {
 	e, err := s.manifests.Get(ctx, ManifestKey(tenant, processorID, version))
 	if err != nil {
@@ -134,6 +140,7 @@ func (s *Store) GetManifest(ctx context.Context, tenant, processorID, version st
 	return DecodeManifest(e.Value())
 }
 
+// Resolve retrieves a manifest by version or tag.
 func (s *Store) Resolve(ctx context.Context, tenant, processorID, ref string) (*Manifest, error) {
 	if ref == "" {
 		ref = "latest"
@@ -158,6 +165,7 @@ func (s *Store) ResolveRuntime(ctx context.Context, tenant, processorID, ref str
 	return m.RuntimeValue(), nil
 }
 
+// ResolvePlacement resolves a manifest and returns its placement keys for scheduling.
 func (s *Store) ResolvePlacement(ctx context.Context, tenant, processorID, ref string) (Runtime, []string, error) {
 	m, err := s.Resolve(ctx, tenant, processorID, ref)
 	if err != nil {
@@ -178,6 +186,7 @@ func (s *Store) FetchArtifact(ctx context.Context, m *Manifest) ([]byte, error) 
 	return s.GetBlobData(ctx, m.Tenant, m.ArtifactHash)
 }
 
+// DeleteVersion deletes a specific manifest version and decrements its reference counts.
 func (s *Store) DeleteVersion(ctx context.Context, tenant, processorID, version string) error {
 	m, err := s.GetManifest(ctx, tenant, processorID, version)
 	if err != nil {
@@ -197,6 +206,7 @@ func (s *Store) DeleteVersion(ctx context.Context, tenant, processorID, version 
 	return s.manifests.Delete(ctx, ManifestKey(tenant, processorID, version))
 }
 
+// EnsureTenantKey ensures a stable encryption/signing key exists for a tenant.
 func (s *Store) EnsureTenantKey(ctx context.Context, tenant string) ([]byte, error) {
 	key := normTenant(tenant)
 	entry, err := s.tenantKeys.Get(ctx, key)
@@ -224,6 +234,7 @@ func (s *Store) EnsureTenantKey(ctx context.Context, tenant string) ([]byte, err
 	return entry.Value(), validateTenantKey(entry.Value())
 }
 
+// PutQuota sets resource limits for a tenant.
 func (s *Store) PutQuota(ctx context.Context, tenant string, quota TenantQuota) error {
 	data, err := json.Marshal(quota)
 	if err != nil {
@@ -233,6 +244,7 @@ func (s *Store) PutQuota(ctx context.Context, tenant string, quota TenantQuota) 
 	return err
 }
 
+// GetQuota retrieves resource limits for a tenant.
 func (s *Store) GetQuota(ctx context.Context, tenant string) (TenantQuota, error) {
 	entry, err := s.quotas.Get(ctx, normTenant(tenant))
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -245,7 +257,8 @@ func (s *Store) GetQuota(ctx context.Context, tenant string) (TenantQuota, error
 	return quota, json.Unmarshal(entry.Value(), &quota)
 }
 
-func (s *Store) SweepTenant(ctx context.Context, tenant string) (int, error) {
+// SweepTenant performs garbage collection for a tenant (stub).
+func (s *Store) SweepTenant(_ context.Context, _ string) (int, error) {
 	return 0, nil
 }
 
@@ -261,7 +274,7 @@ func (s *Store) putTags(ctx context.Context, m *Manifest, tags []string) error {
 	return nil
 }
 
-func (s *Store) tenantChunkBytes(ctx context.Context, tenant string) (int64, error) {
+func (s *Store) tenantChunkBytes(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
 
@@ -434,6 +447,7 @@ func bucket(value, fallback string) string {
 	return value
 }
 
+// MarshalJSON is a helper for JSON serialization.
 func MarshalJSON(v any) ([]byte, error) {
 	return json.Marshal(v)
 }

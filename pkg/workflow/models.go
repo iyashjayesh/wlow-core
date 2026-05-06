@@ -61,24 +61,24 @@ type TaskResult struct {
 	ErrorMessage string         `json:"error_message,omitempty"`
 }
 
-// WorkflowResult contains the aggregated results of a workflow.
-type WorkflowResult struct {
+// Result contains the aggregated results of a workflow.
+type Result struct {
 	WorkflowID  string         `json:"workflow_id"`
 	Status      TaskStatus     `json:"status"`
 	TaskResults []TaskResult   `json:"task_results"`
-	Error       *WorkflowError `json:"error,omitempty"`
+	Error       *Error         `json:"error,omitempty"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
-// WorkflowError contains error details for a failed workflow.
-type WorkflowError struct {
+// Error contains error details for a failed workflow.
+type Error struct {
 	ProcessorID string `json:"processor_id,omitempty"`
 	TaskID      string `json:"task_id,omitempty"`
 	Message     string `json:"message"`
 }
 
-// WorkflowCancel is a request to cancel a workflow.
-type WorkflowCancel struct {
+// Cancel is a request to cancel a workflow.
+type Cancel struct {
 	WorkflowID string `json:"workflow_id"`
 }
 

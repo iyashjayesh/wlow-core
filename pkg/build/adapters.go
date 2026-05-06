@@ -3,7 +3,6 @@ package build
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,8 +10,10 @@ import (
 	"github.com/wlow/wlow/pkg/artifact"
 )
 
+// WasmAdapter builds WASM components.
 type WasmAdapter struct{}
 
+// Build builds a WASM artifact.
 func (WasmAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	data, err := os.ReadFile(opts.Path)
 	if err != nil {
@@ -33,8 +34,10 @@ func (WasmAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	}}, nil
 }
 
+// BinaryAdapter builds executable binary artifacts.
 type BinaryAdapter struct{}
 
+// Build builds a binary process artifact.
 func (BinaryAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	data, err := os.ReadFile(opts.Path)
 	if err != nil {
@@ -52,8 +55,10 @@ func (BinaryAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	}}, nil
 }
 
+// TarballAdapter builds artifacts from rootfs tarballs.
 type TarballAdapter struct{}
 
+// Build builds a MicroVM artifact from a tarball.
 func (TarballAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	data, err := os.ReadFile(opts.Path)
 	if err != nil {
@@ -62,8 +67,10 @@ func (TarballAdapter) Build(_ context.Context, opts Options) (*Spec, error) {
 	return microVMSpec(data, opts, map[string]string{"source": "tarball"}), nil
 }
 
+// DockerfileAdapter builds artifacts from Dockerfiles using BuildKit.
 type DockerfileAdapter struct{}
 
+// Build builds a MicroVM artifact by running a BuildKit build.
 func (DockerfileAdapter) Build(ctx context.Context, opts Options) (*Spec, error) {
 	if opts.Path == "" {
 		return nil, errors.New("dockerfile path required")
