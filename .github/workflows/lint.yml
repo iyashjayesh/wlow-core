@@ -32,9 +32,9 @@ jobs:
 
       - name: Git Authentication
         run: |
-          git config --global url."https://${{ secrets.SECRET_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
         env:
-          GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Go dependencies
         run: |
