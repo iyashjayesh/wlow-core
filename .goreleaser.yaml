@@ -82,7 +82,7 @@ release:
 
     **Linux / macOS:**
     ```sh
-    curl -fsSL https://raw.githubusercontent.com/wlow/wlow-core/main/install.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/wlow-io/wlow-core/main/install.sh | sh
     ```
 
     **Homebrew:**
@@ -92,7 +92,7 @@ release:
 
     **Go install:**
     ```sh
-    go install github.com/wlow/wlow-core/cmd/wlow@{{ .Tag }}
+    go install github.com/wlow-io/wlow-core/cmd/wlow@{{ .Tag }}
     ```
 
     **Verify checksum:**
@@ -101,7 +101,7 @@ release:
     ```
 
     ---
-    Full changelog: https://github.com/wlow/wlow-core/compare/{{ .PreviousTag }}...{{ .Tag }}
+    Full changelog: https://github.com/wlow-io/wlow-core/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # ── Homebrew tap ──────────────────────────────────────────────────────────────
 # Requires HOMEBREW_TAP_TOKEN secret (PAT with contents:write on wlow/homebrew-tap)
